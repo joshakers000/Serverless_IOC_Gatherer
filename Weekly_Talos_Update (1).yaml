@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: An AWS Serverless Specification template describing your function.
+Resources:
+  getMISPParametersTest:
+    DependsOn: WeeklyTalosUpdateStack
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          Sid: "VisualEditor0"
+          Effect: Allow
+          Action: 
+            - ssm:GetParameter
+            - ssm:GetParameters
+            - ssm:GetParametrsByPath
+          Resource: arn:aws:ssm:us-east-1:384310425511:parameter/MISP/*
+      PolicyName: getMISPParametersTest
+      Roles: 
+        - !Ref WeeklyTalosUpdateStack
+  WeeklyTalosUpdateStack:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+            - ec2.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/EC2InstanceConnect
+      Path: "/service-role/"
+      RoleName: WeeklyTalosUpdateStack
+  WeeklyTalosUpdate:
+    DependsOn: WeeklyTalosUpdateStack
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: talosUpdate.lambda_handler
+      Runtime: python3.7
+      CodeUri: s3://joshatestbucket/talos_ioc_puller.zip
+      Description: ''
+      MemorySize: 128
+      Timeout: 900
+      Role: 'arn:aws:iam::384310425511:role/service-role/WeeklyTalosUpdateStack'
+      Events:
+        WeeklyIOC:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 23 ? * 7 *)
